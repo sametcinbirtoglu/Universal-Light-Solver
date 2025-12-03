@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Lights Solver</title>
+    <link rel="shortcut icon" href="assets/img/Logo.ico">
+    <style>
+        :root {
+            --bg-color: #121212;
+            --panel-color: #1e1e1e;
+            --text-color: #e0e0e0;
+            --accent-color: #4caf50;
+            --light-off: #333;
+            --light-on: #ffd700;
+            --light-on-glow: 0 0 10px #ffd700;
+            --hint-color: #ff0055;
+            --border-radius: 8px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 { margin: 0 0 20px 0; font-size: 1.8rem; }
+
+        .settings-panel {
+            background: var(--panel-color);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .input-group label {
+            font-size: 0.8rem;
+            color: #aaa;
+            font-weight: bold;
+        }
+
+        .input-group input {
+            background: #2c2c2c;
+            border: 1px solid #444;
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            width: 60px;
+            text-align: center;
+        }
+
+        .btn-update {
+            background-color: #009688;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            height: 34px;
+        }
+        .btn-update:hover { background-color: #00796b; }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            background: var(--panel-color);
+            padding: 10px 20px;
+            border-radius: var(--border-radius);
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #555;
+            transition: .4s;
+            border-radius: 20px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--accent-color); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        .grid-container {
+            display: grid;
+            gap: 5px;
+            background: var(--panel-color);
+            padding: 10px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            max-width: 95vw;
+            overflow: auto;
+        }
+
+        .cell {
+            background-color: var(--light-off);
+            border-radius: 4px;
+            cursor: pointer;
+            position: relative;
+            aspect-ratio: 1; 
+            min-width: 30px; 
+            min-height: 30px;
+            max-width: 60px;
+        }
+
+        .cell.is-on {
+            background-color: var(--light-on);
+            box-shadow: var(--light-on-glow);
+        }
+
+        body.edit-mode .cell {
+            border: 1px dashed #777;
+        }
+
+        .hint-marker {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40%;
+            height: 40%;
+            background-color: var(--hint-color);
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 0 5px var(--hint-color);
+            pointer-events: none;
+            animation: pulse 1s infinite;
+            z-index: 10;
+        }
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.2); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .actions {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            max-width: 400px;
+        }
+        button.action-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: var(--border-radius);
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1rem;
+            color: white;
+        }
+        .btn-solve { background-color: var(--accent-color); }
+        .btn-clear { background-color: #d32f2f; }
+        .btn-rand { background-color: #1976d2; }
+
+        button:active { filter: brightness(0.9); }
+
+        #status-msg {
+            margin-top: 15px;
+            min-height: 24px;
+            color: #ff9800;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Lights On-Off Solver</h1>
+
+    <div class="settings-panel">
+        <div class="input-group">
+            <label for="input-cols">Columns (Z)</label>
+            <input type="number" id="input-cols" value="3" min="2" max="20">
+        </div>
+        <div class="input-group">
+            <label for="input-rows">Rows (Y)</label>
+            <input type="number" id="input-rows" value="3" min="2" max="20">
+        </div>
+        <button class="btn-update" onclick="resizeGrid()">Apply Size</button>
+    </div>
+
+    <div class="controls">
+        <div class="toggle-row">
+            <span>EDIT MODE</span>
+            <label class="switch">
+                <input type="checkbox" id="mode-toggle">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div class="toggle-row">
+            <span>TARGET: <span id="target-text">OFF</span></span>
+            <label class="switch">
+                <input type="checkbox" id="target-toggle">
+                <span class="slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <div class="grid-container" id="grid"></div>
+
+    <div id="status-msg"></div>
+
+    <div class="actions">
+        <button class="action-btn btn-rand" onclick="randomizeBoard()">Random</button>
+        <button class="action-btn btn-clear" onclick="resetBoard()">Clear</button>
+        <button class="action-btn btn-solve" onclick="solveGaussian()">SOLVE</button>
+    </div>
+
+<script>
+    let COLS = 3; 
+    let ROWS = 3;
+    let board = [];
+    let isEditMode = false;
+    let targetIsAllOn = false;
+
+    const gridEl = document.getElementById('grid');
+    const statusMsg = document.getElementById('status-msg');
+    const modeToggle = document.getElementById('mode-toggle');
+    const targetToggle = document.getElementById('target-toggle');
+    const targetText = document.getElementById('target-text');
+
+    function init() {
+        resizeGrid();
+    }
+
+    function resizeGrid() {
+        const cVal = parseInt(document.getElementById('input-cols').value);
+        const rVal = parseInt(document.getElementById('input-rows').value);
+        if (cVal < 1 || rVal < 1) return;
+        
+        COLS = cVal;
+        ROWS = rVal;
+
+        gridEl.style.gridTemplateColumns = `repeat(${COLS}, 1fr)`;
+        let pxSize = 60;
+        if(COLS > 8) pxSize = 40;
+        if(COLS > 15) pxSize = 25;
+        gridEl.style.width = `${COLS * pxSize + (COLS*5)}px`;
+
+        resetBoard();
+    }
+
+    function resetBoard() {
+        const total = COLS * ROWS;
+        board = new Array(total).fill(0);
+        renderBoard();
+        clearHints();
+        statusMsg.innerText = "";
+    }
+
+    function renderBoard() {
+        gridEl.innerHTML = '';
+        board.forEach((state, i) => {
+            const cell = document.createElement('div');
+            cell.classList.add('cell');
+            if (state === 1) cell.classList.add('is-on');
+            
+            cell.onclick = () => handleCellClick(i);
+            
+            gridEl.appendChild(cell);
+        });
+    }
+
+    function handleCellClick(index) {
+        
+        if (isEditMode) {
+            clearHints();
+            board[index] = board[index] ^ 1;
+        } else {
+            const cell = gridEl.children[index];
+            const marker = cell.querySelector('.hint-marker');
+            if (marker) {
+                marker.remove();
+            }
+
+            togglePattern(board, index);
+        }
+        
+        updateView();
+        checkWin();
+    }
+
+    function togglePattern(arr, index) {
+        const r = Math.floor(index / COLS);
+        const c = index % COLS;
+        const safeFlip = (r, c) => {
+            if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+                const idx = r * COLS + c;
+                arr[idx] = arr[idx] ^ 1;
+            }
+        };
+        safeFlip(r, c);     
+        safeFlip(r - 1, c); 
+        safeFlip(r + 1, c); 
+        safeFlip(r, c - 1); 
+        safeFlip(r, c + 1); 
+    }
+
+    function updateView() {
+        const cells = gridEl.children;
+        for (let i = 0; i < board.length; i++) {
+            if (board[i] === 1) cells[i].classList.add('is-on');
+            else cells[i].classList.remove('is-on');
+        }
+    }
+
+    function checkWin() {
+        const target = targetIsAllOn ? 1 : 0;
+        const won = board.every(b => b === target);
+        if (won) {
+            statusMsg.innerText = "Goal Reached!";
+            clearHints();
+        } else {
+            statusMsg.innerText = "";
+        }
+    }
+
+    function randomizeBoard() {
+        for(let i=0; i<board.length; i++) board[i] = Math.random() > 0.5 ? 1 : 0;
+        updateView();
+        clearHints();
+        statusMsg.innerText = "";
+    }
+
+    modeToggle.addEventListener('change', (e) => {
+        isEditMode = e.target.checked;
+        document.body.classList.toggle('edit-mode', isEditMode);
+        clearHints();
+    });
+
+    targetToggle.addEventListener('change', (e) => {
+        targetIsAllOn = e.target.checked;
+        targetText.innerText = targetIsAllOn ? "ON" : "OFF";
+        clearHints();
+    });
+
+    // Gaussian Elimination GF2
+    function solveGaussian() {
+        clearHints();
+        statusMsg.innerText = "Calculating...";
+
+        const N = COLS * ROWS;
+        let mat = []; 
+
+        for (let r = 0; r < N; r++) {
+            let row = new Array(N + 1).fill(0);
+            let tempBoard = new Array(N).fill(0);
+            togglePattern(tempBoard, r);
+            for (let c = 0; c < N; c++) row[c] = tempBoard[c]; 
+            const targetVal = targetIsAllOn ? 1 : 0;
+            row[N] = board[r] ^ targetVal;
+            mat.push(row);
+        }
+
+        let pivotRow = 0;
+        const colCount = N;
+        const rowCount = N;
+
+        for (let j = 0; j < colCount && pivotRow < rowCount; j++) {
+            let sel = pivotRow;
+            while (sel < rowCount && mat[sel][j] === 0) sel++;
+            if (sel < rowCount) {
+                [mat[pivotRow], mat[sel]] = [mat[sel], mat[pivotRow]];
+                for (let i = 0; i < rowCount; i++) {
+                    if (i !== pivotRow && mat[i][j] === 1) {
+                        for (let k = j; k <= colCount; k++) {
+                            mat[i][k] = mat[i][k] ^ mat[pivotRow][k];
+                        }
+                    }
+                }
+                pivotRow++;
+            }
+        }
+
+        for (let i = pivotRow; i < rowCount; i++) {
+            if (mat[i][N] === 1) {
+                statusMsg.innerText = "Unsolvable configuration.";
+                return;
+            }
+        }
+
+        let clicks = [];
+        for (let i = 0; i < rowCount; i++) {
+            let pivotCol = -1;
+            for(let c=0; c<N; c++){
+                if(mat[i][c] === 1) {
+                    pivotCol = c;
+                    break;
+                }
+            }
+            if(pivotCol !== -1 && mat[i][N] === 1) {
+                clicks.push(pivotCol);
+            }
+        }
+
+        if(clicks.length === 0 && !board.every(b => b === (targetIsAllOn?1:0))) {
+             if(checkWin()) return;
+        }
+
+        showSolution(clicks);
+        statusMsg.innerText = `Solved! Click the ${clicks.length} pink dots.`;
+    }
+
+    function showSolution(indices) {
+        const cells = gridEl.children;
+        indices.forEach(index => {
+            if(!cells[index].querySelector('.hint-marker')) {
+                const hint = document.createElement('div');
+                hint.className = 'hint-marker';
+                cells[index].appendChild(hint);
+            }
+        });
+    }
+
+    function clearHints() {
+        const hints = document.querySelectorAll('.hint-marker');
+        hints.forEach(h => h.remove());
+    }
+
+    init();
+</script>
+</body>
+</html>
